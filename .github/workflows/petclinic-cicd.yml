@@ -1,0 +1,149 @@
+```yaml
+name: Petclinic CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  # =====================================================
+  # 1. BUILD
+  # =====================================================
+  build:
+    name: Build Petclinic
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      - name: Build WAR
+        run: mvn clean package -DskipTests
+
+      - name: Upload WAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: petclinic-war
+          path: target/*.war
+
+
+  # =====================================================
+  # 2. DEV DEPLOYMENT
+  # =====================================================
+  deploy-dev:
+    name: Deploy to DEV
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: dev
+
+    steps:
+      - name: Download WAR
+        uses: actions/download-artifact@v4
+        with:
+          name: petclinic-war
+          path: target
+
+      - name: Deploy WAR to DEV Tomcat
+        run: |
+          WAR_FILE=$(find target -name "*.war" | head -n 1)
+
+          curl --fail --silent --show-error \
+            --user "${{ secrets.DEV_TOMCAT_USERNAME }}:${{ secrets.DEV_TOMCAT_PASSWORD }}" \
+            --upload-file "$WAR_FILE" \
+            "${{ secrets.DEV_TOMCAT_URL }}/manager/text/deploy?path=/petclinic&update=true"
+
+
+  # =====================================================
+  # 3. TEST DEPLOYMENT
+  # =====================================================
+  deploy-test:
+    name: Deploy to TEST
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+
+    environment:
+      name: test
+
+    steps:
+      - name: Download WAR
+        uses: actions/download-artifact@v4
+        with:
+          name: petclinic-war
+          path: target
+
+      - name: Deploy WAR to TEST Tomcat
+        run: |
+          WAR_FILE=$(find target -name "*.war" | head -n 1)
+
+          curl --fail --silent --show-error \
+            --user "${{ secrets.TEST_TOMCAT_USERNAME }}:${{ secrets.TEST_TOMCAT_PASSWORD }}" \
+            --upload-file "$WAR_FILE" \
+            "${{ secrets.TEST_TOMCAT_URL }}/manager/text/deploy?path=/petclinic&update=true"
+
+
+  # =====================================================
+  # 4. PRE-PROD DEPLOYMENT
+  # =====================================================
+  deploy-preprod:
+    name: Deploy to PRE-PROD
+    needs: deploy-test
+    runs-on: ubuntu-latest
+
+    environment:
+      name: pre-prod
+
+    steps:
+      - name: Download WAR
+        uses: actions/download-artifact@v4
+        with:
+          name: petclinic-war
+          path: target
+
+      - name: Deploy WAR to PRE-PROD Tomcat
+        run: |
+          WAR_FILE=$(find target -name "*.war" | head -n 1)
+
+          curl --fail --silent --show-error \
+            --user "${{ secrets.PREPROD_TOMCAT_USERNAME }}:${{ secrets.PREPROD_TOMCAT_PASSWORD }}" \
+            --upload-file "$WAR_FILE" \
+            "${{ secrets.PREPROD_TOMCAT_URL }}/manager/text/deploy?path=/petclinic&update=true"
+
+
+  # =====================================================
+  # 5. PROD DEPLOYMENT
+  # =====================================================
+  deploy-prod:
+    name: Deploy to PROD
+    needs: deploy-preprod
+    runs-on: ubuntu-latest
+
+    environment:
+      name: prod
+
+    steps:
+      - name: Download WAR
+        uses: actions/download-artifact@v4
+        with:
+          name: petclinic-war
+          path: target
+
+      - name: Deploy WAR to PROD Tomcat
+        run: |
+          WAR_FILE=$(find target -name "*.war" | head -n 1)
+
+          curl --fail --silent --show-error \
+            --user "${{ secrets.PROD_TOMCAT_USERNAME }}:${{ secrets.PROD_TOMCAT_PASSWORD }}" \
+            --upload-file "$WAR_FILE" \
+            "${{ secrets.PROD_TOMCAT_URL }}/manager/text/deploy?path=/petclinic&update=true"
+```
