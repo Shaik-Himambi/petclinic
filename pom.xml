@@ -553,4 +553,18 @@
         </repository>
     </repositories>
 
+<distributionManagement>
+    <repository>
+        <id>nexus</id>
+        <name>Nexus Releases</name>
+        <url>http://44.200.226.53:8081/repository/maven-release/</url>
+    </repository>
+
+    <snapshotRepository>
+        <id>nexus</id>
+        <name>Nexus Snapshots</name>
+        <url>http://44.200.226.53:8081/repository/maven-snapshot/</url>
+    </snapshotRepository>
+</distributionManagement>
+
 </project>
